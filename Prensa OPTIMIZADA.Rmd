@@ -1,0 +1,906 @@
+---
+title: "Prensa"
+output: html_document
+date: "2022-11-29"
+---
+
+```{r Librería, include=FALSE}
+
+library(tibble)
+library(rvest)
+library(dplyr)
+library(stringr)
+library(RSelenium)
+library(tidyr)
+library(writexl)
+library(readxl)
+library(RMySQL)
+library(purrr)
+library(magrittr)
+
+```
+
+Los 10 medios digitales más visitados en Enero de 2022, según GfK DAM
+
+```{r Creación base de datos, include=FALSE, eval=FALSE}
+
+prensa <- tibble("medios" = c("El País", 
+                              "El Mundo", 
+                              "20 Minutos", 
+                              "ABC", 
+                              "La Vanguardia", 
+                              "El Confidencial", 
+                              "El Español", 
+                              "elDiario.es", 
+                              "La Razón", 
+                              "OKdiario"),
+                 "link" = c("https://elpais.com/noticias/rusia/",
+                            "https://www.elmundo.es/internacional/rusia.html",
+                            "https://www.20minutos.es/minuteca/rusia/",
+                            "https://www.abc.es/temas/rusia/pag-1.html",
+                            "https://www.lavanguardia.com/topics/rusia",
+                            "https://www.elconfidencial.com/tags/temas/noticias-de-rusia-5200/",
+                            "https://www.elespanol.com/temas/guerra_rusia_ucrania/",
+                            "https://www.eldiario.es/temas/rusia/",
+                            "https://www.larazon.es/tags/rusia/",
+                            "https://okdiario.com/noticias/rusia/"))
+
+dataframe_prensa <- tibble()
+
+```
+
+```{r EL PAIS, include=FALSE}
+
+# Definir función para extraer los datos de una página
+extract_data <- function(url_general) {
+  tryCatch({
+    code <- read_html(url_general)
+    
+    nodo_general <- ".c_a"
+    nodo_titulo <- "h2"
+    nodo_autor <- ".c_a_a"
+    nodo_corresponsal <- ".c_a_l"
+    nodo_fecha <- "#sc_date"
+    nodo_url <- "h2 > a"
+    
+    titulo <- html_nodes(code, nodo_titulo) %>%
+      html_text()
+    
+    autor <- html_nodes(code, nodo_general) %>%
+      html_element(nodo_autor) %>%
+      html_text()
+    
+    corresponsal <- html_nodes(code, nodo_general) %>%
+      html_element(nodo_corresponsal) %>%
+      html_text()
+    
+    fecha <- html_nodes(code, nodo_fecha) %>%
+      html_text() %>%
+      unlist() %>%
+      str_replace_all(" dic ", "/12/") %>%
+      str_replace_all(" nov ", "/11/") %>%
+      str_replace_all(" oct ", "/10/") %>%
+      str_replace_all(" sep ", "/09/") %>%
+      str_replace_all(" ago ", "/08/") %>%
+      str_replace_all(" jul ", "/07/") %>%
+      str_replace_all(" jun ", "/06/") %>%
+      str_replace_all(" may ", "/05/") %>%
+      str_replace_all(" abr ", "/04/") %>%
+      str_replace_all(" mar ", "/03/") %>%
+      str_replace_all(" feb ", "/02/") %>%
+      str_replace_all(" ene ", "/01/") %>%
+      as.Date(format = "%d/%m/%Y")
+    
+    url <- html_nodes(code, nodo_url) %>%
+      html_attr("href")
+    
+    datos <- tibble(titulo, autor, corresponsal, fecha, url,
+                    url_general = url_general, medio = "el pais")
+    
+    print(paste0("Ya extrajiste de la pag: ", url_general))
+    
+    datos
+  }, error = function(e) {
+    message("Error en página: ", url_general)
+    tibble() # Devolver tibble vacío en caso de error
+  })
+}
+
+# Crear lista de URLS y extraer los datos
+todos_links <- paste0("https://elpais.com/noticias/rusia/", 0:150)
+datos_lista <- map_df(todos_links, extract_data)
+
+# Combinar los datos extraídos con el data frame existente (dataframe_prensa)
+dataframe_prensa <- rbind.data.frame(dataframe_prensa, datos_lista)
+
+```
+
+```{r CONTENIDO EL PAÍS, include=FALSE, eval=FALSE}
+
+Sys.sleep(0)
+
+contenido <- tibble()
+
+todos_links <- elpais$url
+
+
+for(link in todos_links){      
+  
+  tryCatch({
+  
+  url <- link
+
+  code <- read_html(url)
+  
+  nodo_contenido <- ".a_c"
+  
+  contenido_publi <- html_nodes(code, nodo_contenido) %>%
+    html_text() %>%
+    unlist() %>%
+    str_replace_all("Puedes seguir a EL PAÍS Deportes en Facebook y Twitter, o apuntarte aquí para recibir nuestra newsletter semanal.", "")
+  
+  datos <- cbind.data.frame(contenido_publi) %>%
+    mutate(url = link)
+  
+  contenido <- rbind.data.frame(contenido, datos)
+  
+  print(paste0("Ya extrajiste de la pag: ", link))
+  
+  }, error=function(e){})
+}
+
+```
+
+```{r EL MUNDO, include=FALSE}
+
+Sys.sleep(0)
+
+# Definir función para extraer los datos de una página
+
+extract_data <- function(url_general) {
+  tryCatch({
+    code <- read_html(url_general)
+    
+    nodo_general <- ".ue-c-cover-content__list-inline"
+    nodo_titulo <- "h2"
+    nodo_autor <- ".ue-c-cover-content__byline-name"
+    nodo_corresponsal <- ".ue-c-cover-content__byline-location"
+    nodo_fecha <- ".ue-c-cover-content__published-date"
+    nodo_url <- ".ue-c-cover-content__link"
+    
+    titulo <- html_nodes(code, nodo_titulo) %>%
+      html_text()
+    
+    autor <- html_nodes(code, nodo_general) %>%
+      html_element(nodo_autor) %>%
+      html_text() %>%
+      str_replace_all("Redacción: ", "") %>%
+      str_replace_all("\n", "") 
+    
+    corresponsal <- html_nodes(code, nodo_general) %>%
+      html_element(nodo_corresponsal) %>%
+      html_text()
+    
+    fecha <- html_nodes(code, nodo_fecha) %>%
+      html_attr("data-publish") %>%
+      as.Date( "%Y-%m-%d") 
+    
+    url <- html_nodes(code, nodo_url) %>%
+      html_attr("href")
+    
+    datos <- tibble(titulo, autor, corresponsal, fecha, url,
+                    url_general = url_general, medio = "el mundo")
+    
+    print(paste0("Ya extrajiste de la pag: ", url_general))
+    
+    datos
+  }, error = function(e) {
+    message("Error en página: ", url_general)
+    tibble() # Devolver tibble vacío en caso de error
+  })
+}
+
+# Crear lista de URLS y extraer los datos
+todos_links <- c("https://www.elmundo.es/internacional/rusia.html" ,
+                 paste0("https://www.elmundo.es/internacional/rusia/pag",
+                        2:100))
+datos_lista <- map_df(todos_links, extract_data)
+
+# Combinar los datos extraídos con el data frame existente (dataframe_prensa)
+dataframe_prensa <- rbind.data.frame(dataframe_prensa, datos_lista)
+
+```
+
+```{r 20 MINUTOS, include = FALSE}
+
+##SOLO HAY HASTA PAGINA 10, POR LO QUE HAY QUE BUSCAR COMO RECUOPERAR EL HISTÓRICO
+
+Sys.sleep(0)
+
+# Definir función para extraer datos de cada enlace
+extract_data_from_link <- function(url_general) {
+  tryCatch({
+    code <- read_html(url_general)
+    
+    nodo_titulo <- "h1 > a"
+    nodo_autor <- ".author"
+    nodo_fecha <- ".article-date"
+    
+    titulo <- html_nodes(code, nodo_titulo) %>%
+      html_text() %>%
+      str_replace_all("\n", "") %>%
+      str_trim()
+    
+    autor <- html_nodes(code, nodo_autor) %>%
+      html_text() %>%
+      str_trim() %>%
+      str_replace_all("\\p{WHITE_SPACE}\\p{WHITE_SPACE}", "") %>%
+      str_replace_all(" ,", ", ")
+    
+    corresponsal <- NA
+    
+    url <- html_nodes(code, nodo_titulo) %>%
+      html_attr("href")
+    
+    datos <- tibble(
+      titulo = titulo,
+      autor = autor,
+      corresponsal = corresponsal,
+      url = url,
+      url_general = url_general,
+      medio = "veinte minutos"
+    )
+    
+    print(paste0("Ya extrajiste de la pag: ", url_general))
+    
+    datos
+  }, error = function(e) {
+    message("Error en página: ", url_general)
+    tibble()  # Devolver tibble vacío en caso de error
+  })
+}
+
+# Crear lista de URLS y extraer los datos
+todos_links <- paste0("https://www.20minutos.es/minuteca/rusia/",
+                      1:5)
+datos_lista <- map_df(todos_links, extract_data_from_link)
+
+# Extraer fechas de los enlaces
+date <- datos_lista %>%
+  mutate(url = as.character(url)) %>%
+  pull(url) %>%
+  map_df(~ tryCatch({
+    code <- read_html(.x)
+    nodo_fecha <- ".article-date"
+    fecha <- html_nodes(code, nodo_fecha) %>%
+      html_text() %>%
+      as.Date("%d.%m.%Y")
+    tibble(fecha = fecha, url = .x)
+  }, error = function(e) { tibble(fecha = NA, url = .x) }))
+
+# Combinar los datos extraídos con el data frame existente (dataframe_prensa)
+datos_lista <- left_join(datos_lista, date, by = "url")
+dataframe_prensa <- rbind.data.frame(dataframe_prensa, datos_lista)
+
+```
+
+```{r ABC, include=FALSE}
+
+Sys.sleep(0)
+
+abc <-tibble()
+
+todos_links <- paste0("https://www.abc.es/temas/rusia/pag-",
+                      2:100,
+                      ".html")
+
+for(link in todos_links){
+  
+  tryCatch({
+  
+  url <- link
+
+  code <- read_html(url)
+  
+  nodo_general <- "footer.clear"
+  
+  nodo_titulo <- "h1 > a"
+  
+  nodo_autor <- ".firma.gris-medio"
+  
+  nodo_fecha <- ".clear > time"
+  
+  titulo <- html_nodes(code, nodo_titulo) %>%
+    html_text() %>%
+    unlist() %>%
+    str_replace_all("\n|\t", "")
+  
+  autor <- html_nodes(code, nodo_general) %>%
+    html_element(nodo_autor) %>% 
+    html_text() %>%
+    unlist() %>%
+    str_replace_all("\n|\t", "") %>%
+    .[-length(.)]
+
+  corresponsal <- NA
+  
+  fecha <- html_nodes(code, nodo_fecha) %>%
+    html_attr("datetime") %>%
+    as.Date("%d/%m/%Y") 
+  
+  url <- html_nodes(code, nodo_titulo) %>%
+    html_attr("href") %>%
+    unlist()
+    
+  
+  datos <- cbind.data.frame(titulo, autor, corresponsal, fecha, url) %>%
+    mutate(url_general = link,
+           medio = "abc")
+  
+  abc <- rbind.data.frame(abc, datos)
+  
+  print(paste0("Ya extrajiste de la pag: ", link))
+  
+  }, error=function(e){})
+}
+
+dataframe_prensa <- rbind.data.frame(dataframe_prensa, abc)
+
+```
+
+```{r LA VANGUARDIA, include=FALSE}
+
+Sys.sleep(0)
+
+vanguardia <-tibble()
+
+todos_links <- c("https://www.lavanguardia.com/topics/rusia" ,
+                 paste0("https://www.lavanguardia.com/topics/rusia/page-",
+                                              2:100))
+
+for(link in todos_links){
+  
+  tryCatch({
+  
+  url <- link
+
+  code <- read_html(url)
+  
+  nodo_titulo <- "h2.article-title"
+  
+  nodo_autor <- "span.author"
+  
+  nodo_fecha <- "time.date"
+  
+  nodo_url <- "h2.article-title > a"
+  
+  titulo <- html_nodes(code, nodo_titulo) %>%
+    html_text() %>%
+    unlist()
+  
+  autor <- html_nodes(code, nodo_autor) %>%
+    html_text() %>%
+    unlist()
+
+  corresponsal <- NA
+  
+  fecha <- html_nodes(code, nodo_fecha) %>%
+    html_text() %>%
+    as.Date("%d/%m/%Y") 
+  
+  url <- html_nodes(code, nodo_url) %>%
+    html_attr("href") %>%
+    unlist()
+    
+  
+  datos <- cbind.data.frame(titulo, autor, corresponsal, fecha, url) %>%
+    mutate(url_general = link,
+           medio = "la vanguardia")
+  
+  vanguardia <- rbind.data.frame(vanguardia, datos)
+  
+  print(paste0("Ya extrajiste de la pag: ", link))
+
+  }, error=function(e){})
+}
+
+dataframe_prensa <- rbind.data.frame(dataframe_prensa, vanguardia)
+
+```
+
+```{r EL CONFIDENCIAL OPTIMIZADA, include=FALSE}
+
+#CON RSELENIUM. NO SOY CAPAZ DE ENCONTRAR REGISTRO HISTÓRICO SOBRE EL TEMA. SOLO LLEGA HASTA AGOSTO.
+
+link <- "https://www.elconfidencial.com/tags/temas/conflicto-de-ucrania-10136/"
+
+# Función para extraer información de cada página de artículo
+extract_info <- function(link) {
+  tryCatch({
+    web <- read_html(link)
+    fecha_extra <- html_nodes(web, ".articleHeaderBar__sectionDate") %>%
+      html_element(".dateTime") %>%
+      html_element(".dateTime__created") %>%
+      html_text() %>%
+      str_extract_all("\\d{2}/\\d{2}/\\d{4}") 
+    print(paste0("Ya extrajiste de la pag: ", link))
+    if (length(fecha_extra) == 0) {
+      fecha_extra <- NA 
+    }
+    return(fecha_extra)
+  }, error = function(e) {
+    print(paste0("ERROR en la pag: ", link))
+    return(NA)
+  })
+}
+
+# Configurar RSelenium
+rD <- rsDriver(browser = "chrome", port = 4568L, chromever = "latest")
+
+remDr <- rD[["client"]]
+
+link <- "https://www.elconfidencial.com/tags/temas/conflicto-de-ucrania-10136/"
+remDr$navigate(link)
+
+# Aceptar cookies
+remDr$findElement("css", "#didomi-notice-agree-button")$clickElement()
+
+# Hacer scroll hasta el final de la página para cargar todos los artículos
+
+tryCatch({
+  Sys.sleep(2)
+  suppressMessages({
+    vermas <- remDr$findElement("css", ".otherArticles__button")
+    while(vermas$isElementDisplayed()[[1]]){
+      webElem <- remDr$findElement("css", "body")
+      webElem$sendKeysToElement(list(key = "end"))
+      vermas$sendKeysToElement(list(key = "enter"))
+      Sys.sleep(2)
+      vermas <- remDr$findElement("css", ".otherArticles__button")
+      
+    }
+  })
+}, 
+error = function(e) {
+  NA_character_
+}
+)
+
+# Obtener el código fuente de la página
+code <- remDr$getPageSource()[[1]]
+
+# Extraer información de los artículos
+data <- read_html(code) %>%
+  html_nodes(".otherArticles__item") %>%
+  {cbind(
+    titulo = html_node(., ".smallPhoto__title") %>% html_text() %>% str_trim() %>% .[-6],
+    autor = html_node(., ".articleInfo__signature") %>% html_text() %>% .[-6],
+    corresponsal = NA_character_,
+    url = html_node(., ".smallPhoto__titleLink") %>% html_attr("href") %>% .[-6]
+  )}
+
+# Extraer fechas usando lapply
+
+data <- data.frame(data)
+
+# data$fecha <- lapply(data$url, extract_info) %>% unlist()
+
+data$fecha <- lapply(data$url,
+                extract_info) %>% unlist() %>%
+  as.Date("%d/%m/%Y")
+
+# Agregar información adicional
+data <- data %>%
+  mutate(
+    url_general = "https://www.elconfidencial.com/tags/temas/conflicto-de-ucrania-10136/",
+    medio = "el confidencial"
+  ) %>%
+  drop_na(url)
+
+# Cerrar la conexión de RSelenium
+remDr$close()
+
+# Combinar con el dataframe existente (dataframe_prensa es el dataframe previamente existente)
+dataframe_prensa <- rbind.data.frame(dataframe_prensa, data)
+
+```
+
+```{r EL ESPAÑOL, include=FALSE}
+
+Sys.sleep(0)
+
+#EN ESTE CASO POR FACILITAR LAS COSAS, NO SE REALIZAR EL SCRAPEO DE LA PRIMERA PAGINA
+
+español <-tibble()
+
+todos_links <- c(paste0("https://www.elespanol.com/temas/guerra_rusia_ucrania/",
+                                              149:1))
+
+for(link in todos_links){
+  
+  tryCatch({
+  
+  url <- link
+
+  code <- read_html(url)
+  
+  nodo_titulo <- "h3 > a"
+  
+  nodo_autor <- "span.author"
+  
+  nodo_corresponsal <- ".ue-c-cover-content__byline-location"
+  
+  titulo <- html_nodes(code, nodo_titulo) %>%
+    html_text() %>%
+    unlist() %>%
+    str_replace_all("\"", "") 
+  
+  autor <- html_nodes(code, nodo_autor) %>%
+    html_element("span") %>%
+    html_text() %>%
+    unlist() %>%
+    str_replace_all("\n", "") %>%
+    str_trim() %>%
+    str_replace_all("[0-9]", "") %>%
+    str_replace("^..$", "") %>%
+    na_if("")
+
+  corresponsal <- NA
+  
+  fecha <- html_nodes(code, nodo_autor) %>%
+    html_element("time") %>%
+    html_text() %>%
+    str_replace_all("\n", "") %>%
+    as.Date( "%d.%m.%Y") 
+  
+  url <- html_nodes(code, nodo_titulo) %>%
+    html_attr("href") %>%
+    unlist() %>%
+    paste0("https://www.elespanol.com", .)
+    
+  
+  datos <- cbind.data.frame(titulo, autor, corresponsal, fecha, url) %>%
+    mutate(url_general = link,
+           medio = "el español")
+  
+  español <- rbind.data.frame(español, datos)
+  
+  print(paste0("Ya extrajiste de la pag: ", link))
+
+  }, error=function(e){})
+}
+
+dataframe_prensa <- rbind.data.frame(dataframe_prensa, español)
+
+```
+
+```{r EL DIARIO, include=FALSE}
+
+#CON RSELENIUM
+
+link <- "https://www.eldiario.es/temas/rusia/"
+
+remDr$open()
+
+Sys.sleep(5)
+
+remDr$navigate(link)
+  
+Sys.sleep(5)
+
+cookies <- remDr$findElement("css", "#didomi-notice-agree-button")
+
+cookies$clickElement()
+
+tryCatch({
+  Sys.sleep(2)
+  suppressMessages({
+    vermas <- remDr$findElement("css", ".view-more-button.blue-btn")
+    while(vermas$isElementDisplayed()[[1]]){
+      webElem <- remDr$findElement("css", "body")
+      webElem$sendKeysToElement(list(key = "end"))
+      vermas$sendKeysToElement(list(key = "enter"))
+      Sys.sleep(2)
+      vermas <- remDr$findElement("css", ".view-more-button.blue-btn")
+      
+    }
+  })
+}, 
+error = function(e) {
+  NA_character_
+}
+)
+  
+Sys.sleep(3)
+
+code <- remDr$getPageSource()[[1]]
+  
+Sys.sleep(4)
+
+titulo <- read_html(code) %>%
+  html_nodes(".md__new.md__new--type1") %>%
+  html_node(".ni-title") %>%
+  html_text() %>%
+  str_replace_all("\n ", "") %>%
+  str_replace_all("\"", "") %>%
+  str_trim()
+
+autor <- read_html(code) %>%
+  html_nodes(".md__new.md__new--type1") %>%
+  html_node(".signature") %>%
+  html_text() %>%
+  str_replace_all("\n ", "") %>%
+  str_trim() %>%
+  str_replace_all("  ", "")
+
+corresponsal <- NA
+
+url <- read_html(code) %>%
+  html_nodes(".md__new.md__new--type1") %>%
+  html_node(".ni-title > a") %>%
+  html_attr("href") 
+
+todos_links <- url
+
+fecha <- c() %>%
+  as.Date( "%d/%m/%Y") 
+
+for(link in todos_links){
+  
+  tryCatch({
+  
+  web <- link
+  
+  code <- read_html(web)
+  
+  fecha_extra <- html_nodes(code, ".date-comments-wrapper") %>%
+    html_element(".date") %>%
+    html_attr("datetime") %>% 
+    as.Date( "%Y-%m-%d")
+    
+  fecha <- c(fecha, fecha_extra)
+  
+  print(paste0("Ya extrajiste de la pag: ", web))
+  
+  }, error=function(e){})
+}
+
+diario <- cbind.data.frame(titulo, autor, corresponsal, fecha, url) %>%
+  mutate(url_general = "https://www.elconfidencial.com/tags/temas/conflicto-de-ucrania-10136/",
+          medio = "el diario") %>%
+  drop_na(url) 
+
+diario <- diario[!duplicated(diario$url), ]
+
+dataframe_prensa <- rbind.data.frame(dataframe_prensa, diario)
+
+remDr$close()
+
+```
+
+```{r LA RAZON, include=FALSE}
+
+Sys.sleep(0)
+
+#EN ESTE CASO POR FACILITAR LAS COSAS, NO SE REALIZAR EL SCRAPEO DE LA PRIMERA PAGINA
+
+razon <-tibble()
+
+todos_links <- c(paste0("https://www.larazon.es/tags/rusia/",
+                                              2:245),
+                 paste0("https://www.larazon.es/tags/rusia/",
+                                              246:500))
+
+for(link in todos_links){
+  
+  tryCatch({
+  
+  url <- link
+
+  code <- read_html(url)
+  
+  nodo_general <- "h2 > a"
+  
+  nodo_titulo <- "aria-label"
+  
+  nodo_autor <- ".card__byline"
+  
+  nodo_fecha <- ".card__byline > p > time"
+  
+  nodo_url <- ".ue-c-cover-content__link"
+  
+  titulo <- html_nodes(code, nodo_general) %>%
+    html_attr(nodo_titulo) %>%
+    unlist()
+  
+  autor <- html_nodes(code, nodo_autor) %>%
+    html_element("ul > li") %>%
+    html_text() %>%
+    unlist() %>%
+    .[c(1:8)]
+
+  corresponsal <- NA
+  
+  fecha <- html_nodes(code, nodo_fecha) %>%
+    html_attr("datetime") %>%
+    as.Date( "%Y-%m-%d") 
+  
+  url <- html_nodes(code, nodo_general) %>%
+    html_attr("href") %>%
+    unlist()
+    
+  
+  datos <- cbind.data.frame(titulo, autor, corresponsal, fecha, url) %>%
+    mutate(url_general = link,
+           medio = "la razon")
+  
+  razon <- rbind.data.frame(razon, datos)
+  
+  print(paste0("Ya extrajiste de la pag: ", link))
+
+  }, error=function(e){})
+}
+
+dataframe_prensa <- rbind.data.frame(dataframe_prensa, razon)
+
+```
+
+```{r OKDIARIO, include=FALSE}
+
+Sys.sleep(0)
+
+okdiario <-tibble()
+
+todos_links <- paste0("https://okdiario.com/noticias/rusia/",
+                                              1:31)
+
+for(link in todos_links){
+  
+  tryCatch({
+  
+  url <- link
+
+  code <- read_html(url)
+  
+  nodo_general <- ".article-footer > ul"
+  
+  nodo_titulo <- ".article-title"
+  
+  nodo_autor <- ".article-author"
+  
+  nodo_fecha <- ".article-date"
+  
+  nodo_url <- "article > a"
+  
+  titulo <- html_nodes(code, nodo_titulo) %>%
+    html_text() %>%
+    unlist() %>%
+    str_replace_all("\"", "")
+  
+  autor <- html_nodes(code, nodo_general) %>%
+    html_element(nodo_autor) %>%
+    html_text() %>%
+    unlist() 
+
+  corresponsal <- NA
+  
+  fecha <- html_nodes(code, ".article-date") %>%
+    html_text() %>%
+    as.Date( "%d-%m-%Y") 
+  
+  url <- html_nodes(code, nodo_url) %>%
+    html_attr("href") %>%
+    unlist()
+    
+  
+  datos <- cbind.data.frame(titulo, autor, corresponsal, fecha, url) %>%
+    mutate(url_general = link,
+           medio = "ok diario")
+  
+  okdiario <- rbind.data.frame(okdiario, datos)
+  
+  print(paste0("Ya extrajiste de la pag: ", link))
+
+  }, error=function(e){})
+}
+
+dataframe_prensa <- rbind.data.frame(dataframe_prensa, okdiario)
+
+```
+
+```{r Eliminamos las respuestas duplicadas , include=FALSE}
+
+dataframe_prensa <- dataframe_prensa[!duplicated(dataframe_prensa$url), ]
+
+```
+
+
+```{r Descarga de datos, include=FALSE, eval= FALSE}
+
+write_xlsx(dataframe_prensa, 
+           "Base de datos Prensa (recogida 16.01.2023).xlsx", 
+           col_names = TRUE)
+
+```
+
+```{r Cargar Base de datos, include=FALSE, eval= FALSE}
+
+dataframe_prensa <- read_xlsx("C:/Users/Pc/Desktop/Pablo/Trabajo/Análisis Comparado/Base de datos/Base de datos Prensa (recogida 16.01.2023).xlsx")
+
+```
+
+```{r Exportar Base de Datos a MySQL, include=FALSE, eval=FALSE}
+
+# Información de conexión
+
+db_user <- "root"
+db_password <- "variantedifusa96"
+db_name <- "prensa"
+db_host <- "localhost"  
+db_port <- 3306 
+
+# Establecer la conexión
+
+con <- dbConnect(MySQL(), user = db_user, password = db_password, dbname = db_name, host = db_host, port = db_port, local_infile = TRUE)
+
+# Suponiendo que tu data frame se llama mi_data_frame
+
+nombre_tabla <- "tabla_prensa"
+
+# Es necesario previamente haber habilitado en MySQL Workbench la función de importar
+# archivos locales.
+
+sql_query <- "SET GLOBAL local_infile = 'ON';"
+dbExecute(con, sql_query)
+
+# Escribir la tabla en la base de datos MySQL
+
+dbWriteTable(con, name = nombre_tabla, value = dataframe_prensa, row.names = FALSE, overwrite = TRUE)
+
+# Establecer PK y enviar consulta a MySQL
+
+sql_query <- "ALTER TABLE prensa.tabla_prensa ADD PRIMARY KEY (url(250));"
+
+dbExecute(con, sql_query)
+
+# Establecemos la fecha como de tipo DateTime
+
+sql_query <- "ALTER TABLE `prensa`.`tabla_prensa` 
+CHANGE COLUMN `fecha` `fecha` DATETIME NULL DEFAULT NULL ;"
+
+dbExecute(con, sql_query)
+
+#Deshabilitamos función de importar archivos locales por seguridad
+
+sql_query <- "SET GLOBAL local_infile = 'OFF';"
+dbExecute(con, sql_query)
+
+#Desconectar conexión con MySQL
+
+dbDisconnect(con)
+
+```
+
+```{r PRUEBAS, eval=FALSE}
+
+count(dataframe_prensa,
+      medio,
+      sort = T)
+
+dataframe_prensa %>%
+  group_by(medio) %>%
+  summarise(min = min(fecha))
+
+count(dataframe_prensa,
+      corresponsal,
+      sort = T)
+
+#CONFIDENCIAL Y 20MIN NO ME DAN DEMASIADOS DATOS. EL RESTO ME DA COMO MINIMO DESDE ANTES DEL INICIO DE LA OFENSIVA RUSA
+
+```
+
+
+
+
+
+
