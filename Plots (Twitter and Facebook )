@@ -254,4 +254,6 @@ ggsave(fillname, last_plot(), width = 9.02, height = 5.76, dpi = 300)
 
 ```
 
-![Tweets and Post + Interaction](https://raw.githubusercontent.com/pfdezmesa/R_Portfolio/main/Media%20de%20Publicaciones%20y%20reacciones%20por%20cada%20publicaci%C3%B3n.png)
+![https://github.com/mouredev](https://raw.githubusercontent.com/pfdezmesa/R_Portfolio/main/Graficos%20de%20frecuencias.jpg)
+![Aquí la descripción de la imagen por si no carga](https://raw.githubusercontent.com/pfdezmesa/R_Portfolio/main/Graficos%20de%20frecuencias.jpg)
+![Tweets and Post + Interaction] (https://raw.githubusercontent.com/pfdezmesa/R_Portfolio/main/Media%20de%20Publicaciones%20y%20reacciones%20por%20cada%20publicaci%C3%B3n.png)
