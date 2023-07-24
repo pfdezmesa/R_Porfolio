@@ -253,3 +253,6 @@ frecuencias %>%
 ggsave(fillname, last_plot(), width = 9.02, height = 5.76, dpi = 300)
 
 ```
+
+![Frecuency Plot](https://raw.githubusercontent.com/pfdezmesa/R_Portfolio/master/asset/Graficos%20de%20frecuencias.jpg)
+
