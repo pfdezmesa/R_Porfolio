@@ -254,5 +254,4 @@ ggsave(fillname, last_plot(), width = 9.02, height = 5.76, dpi = 300)
 
 ```
 
-![Frecuency Plot](https://raw.githubusercontent.com/pfdezmesa/R_Portfolio/master/asset/Graficos%20de%20frecuencias.jpg)
-
+![Tweets and Post + Interaction](https://raw.githubusercontent.com/pfdezmesa/R_Portfolio/main/Media%20de%20Publicaciones%20y%20reacciones%20por%20cada%20publicaci%C3%B3n.png)
