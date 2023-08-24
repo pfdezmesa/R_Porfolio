@@ -1,6 +1,6 @@
 In this example, we are going to show how to obtain information from some of the main media in Spain about a current issue.
 
-We are going to offer two different examples. Among other packages we will work with "Rvest" and "RSelenium". And finally we will export this data to MySQL with the "RMySQL" package.
+We are going to offer two different examples. Among other packages we will work with "Rvest" (El Pais) and "RSelenium" (El Confidencial). And finally we will export this data to MySQL with the "RMySQL" package.
 
 ---
 title: "Media"
