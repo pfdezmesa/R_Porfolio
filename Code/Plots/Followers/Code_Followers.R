@@ -30,8 +30,7 @@ cuentas_unificadas %>%
        caption = "Fuente: Datos recogidos desde Twitter y Facebook
        
        Nota: Existen 31 valores atípicos que no aparecen representados en la gráfica por motivo de espacio.",
-       colour = NULL,
-       mtext = "Hola hola") +
+       colour = NULL) +
   theme(plot.title = element_text(face= "bold",
                                   size = 12),
         plot.subtitle = element_text(size = 10),
